@@ -1,11 +1,14 @@
 use std::collections::HashMap;
 use std::net::SocketAddr;
 
+use tracing_subscriber::{FmtSubscriber, EnvFilter};
+
 use warp::Filter;
 use warp::filters::{method, path, query};
 
 const SERVER_ADDR: &'static str = "127.0.0.1:3030";
 
+#[tracing::instrument]
 fn get_thread(forum: u32, topic: u32, query: HashMap<String, String>) -> String {
     use std::fmt::Write;
 
@@ -26,6 +29,10 @@ fn get_thread(forum: u32, topic: u32, query: HashMap<String, String>) -> String 
 
 #[tokio::main]
 async fn main() {
+    FmtSubscriber::builder()
+        .with_env_filter(EnvFilter::from_default_env())
+        .init();
+
     // GET /hello/warp => 200 OK with body "Hello, warp!"
     let hello = warp::path!("hello" / String)
         .map(|name| format!("Hello, {}!", name));
