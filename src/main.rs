@@ -1,7 +1,10 @@
 use std::collections::HashMap;
+use std::net::SocketAddr;
 
 use warp::Filter;
 use warp::filters::{method, path, query};
+
+const SERVER_ADDR: &'static str = "127.0.0.1:3030";
 
 fn get_thread(forum: u32, topic: u32, query: HashMap<String, String>) -> String {
     use std::fmt::Write;
@@ -36,7 +39,11 @@ async fn main() {
 
     let routes = method::get().and(hello.or(index).or(topic));
 
+    let addr: SocketAddr = SERVER_ADDR.parse().unwrap();
+    println!();
+    println!("running server on {}", addr);
+
     warp::serve(routes)
-        .run(([127, 0, 0, 1], 3030))
+        .run(addr)
         .await;
 }
