@@ -6,6 +6,7 @@ use tracing_subscriber::{FmtSubscriber, EnvFilter};
 use warp::Filter;
 use warp::filters::{method, path, query};
 use warp::reject::{not_found, Rejection};
+use warp::reply::Reply;
 
 mod db;
 
@@ -18,8 +19,8 @@ macro_rules! routes {
     };
 }
 
-async fn start_server(addr: SocketAddr) {
-    let routes = method::get().and(routes![
+fn get_routes() -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    method::get().and(routes![
         // warp "hello world": `/hello/warp` returns "Hello, warp!"
         warp::path!("hello" / String)
             .map(|name| format!("Hello, {}!", name)),
@@ -37,11 +38,7 @@ async fn start_server(addr: SocketAddr) {
         warp::path!("forum" / u32 / "topic" / u32)
             .and(query::query())
             .map(get_thread),
-    ]);
-
-    warp::serve(routes)
-        .run(addr)
-        .await;
+    ])
 }
 
 async fn get_forum(forum_id: u32, query: HashMap<String, String>) -> Result<String, Rejection> {
@@ -102,9 +99,13 @@ async fn main() {
         .with_env_filter(EnvFilter::from_default_env())
         .init();
 
+    let routes = get_routes();
+
     let addr: SocketAddr = SERVER_ADDR.parse().unwrap();
     println!();
     println!("running server on {}", addr);
 
-    start_server(addr).await;
+    warp::serve(routes)
+        .run(addr)
+        .await;
 }
