@@ -21,13 +21,9 @@ macro_rules! routes {
 
 fn get_routes() -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     method::get().and(routes![
-        // warp "hello world": `/hello/warp` returns "Hello, warp!"
-        warp::path!("hello" / String)
-            .map(|name| format!("Hello, {}!", name)),
-
-        // index route
+        // index route; list all forums
         path::end()
-            .map(|| format!("sup")),
+            .map(get_index),
 
         // get a forum
         warp::path!("forum" / u32)
@@ -39,6 +35,25 @@ fn get_routes() -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone 
             .and(query::query())
             .map(get_thread),
     ])
+}
+
+fn get_index() -> String {
+    use std::fmt::Write;
+
+    let mut output = String::new();
+
+    output.push_str("prasiolite-bb test data\n");
+    output.push('\n');
+    output.push_str("-----\n");
+
+    for forum in db::get_forums() {
+        output.push('\n');
+
+        writeln!(output, "forum \"{}\"", forum.name).unwrap();
+        writeln!(output, "  {}", forum.description).unwrap();
+    }
+
+    output
 }
 
 async fn get_forum(forum_id: u32, query: HashMap<String, String>) -> Result<String, Rejection> {
