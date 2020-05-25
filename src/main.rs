@@ -5,6 +5,9 @@ use tracing_subscriber::{FmtSubscriber, EnvFilter};
 
 use warp::Filter;
 use warp::filters::{method, path, query};
+use warp::reject::{not_found, Rejection};
+
+mod db;
 
 const SERVER_ADDR: &'static str = "127.0.0.1:3030";
 
@@ -25,6 +28,11 @@ async fn start_server(addr: SocketAddr) {
         path::end()
             .map(|| format!("sup")),
 
+        // get a forum
+        warp::path!("forum" / u32)
+            .and(query::query())
+            .and_then(get_forum),
+
         // get a thread
         warp::path!("forum" / u32 / "topic" / u32)
             .and(query::query())
@@ -36,7 +44,40 @@ async fn start_server(addr: SocketAddr) {
         .await;
 }
 
-#[tracing::instrument]
+async fn get_forum(forum_id: u32, query: HashMap<String, String>) -> Result<String, Rejection> {
+    use std::fmt::Write;
+
+    let forum = if let Some(f) = db::get_forum(forum_id) {
+        f
+    } else {
+        return Err(not_found());
+    };
+
+    let sort: db::Sorting = query.get("sort").map_or(db::Sorting::Descending, |s| (&**s).into());
+
+    let topics = db::get_topics(forum_id, sort);
+
+    let mut output = String::new();
+
+    writeln!(output, "forum: {}", forum.name).unwrap();
+    writeln!(output, "{}", forum.description).unwrap();
+
+    output.push_str("\n");
+    output.push_str("-----\n");
+    output.push_str("\n");
+
+    for t in topics {
+        output.push_str("\n");
+        writeln!(output, "\"{}\"", t.name).unwrap();
+        writeln!(output, "  by: {}", t.author).unwrap();
+        writeln!(output, "  opened: {}", t.opened).unwrap();
+        writeln!(output, "  last post: {}", t.last_post).unwrap();
+        writeln!(output, "  posts: {}", t.post_count).unwrap();
+    }
+
+    Ok(output)
+}
+
 fn get_thread(forum: u32, topic: u32, query: HashMap<String, String>) -> String {
     use std::fmt::Write;
 
